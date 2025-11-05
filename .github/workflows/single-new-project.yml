@@ -99,7 +99,7 @@ jobs:
     name: Configure Collector
     runs-on: ubuntu-latest
     outputs:
-      collector_config: ${{ steps.configure-collector.outputs.collector_config }}
+      collector_config: ${{ steps.generate-config.outputs.collector_config }}
       matrix: ${{ needs.determine-parallelism.outputs.matrix }}
     needs:
       - launch-project
@@ -111,6 +111,7 @@ jobs:
           fetch-depth: 1
 
       - name: Generate Config
+        id: generate-config
         env:
           API_KEY: ${{ needs.launch-project.outputs.es_api_key }}
           OTLP_ENDPOINT: ${{ needs.launch-project.outputs.ingest_url }}:443
