@@ -10,13 +10,13 @@ on:
         delay_start:
           description: 'Maximum delay in seconds before starting each collector'
           required: false
-          default: 10
-          type: number
+          default: '10'
+          type: string
         numprocs:
           description: 'Number of collector instances to run'
           required: false
-          default: 5
-          type: number
+          default: '5'
+          type: string
         parallelism:
           description: 'Number of parallel jobs to run'
           required: false

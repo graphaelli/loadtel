@@ -3,20 +3,20 @@ on:
   workflow_call:
     inputs:
         numprocs:
-          default: 5
+          default: '5'
           description: 'Number of collector instances to run'
           required: false
-          type: number
+          type: string
         duration:
           default: '1m'
           description: 'Duration for each collector instance to run'
           required: false
           type: string
         delay_start:
-          default: 10
+          default: '10'
           description: 'Maximum delay in seconds before starting each collector'
           required: false
-          type: number
+          type: string
         matrix:
           default: '[0,1,2]'
           description: 'Matrix of parallel jobs to run'
