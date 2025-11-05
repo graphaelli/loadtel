@@ -147,6 +147,8 @@ jobs:
         env:
           API_KEY: ${{ steps.load-api-key.outputs.api_key }}
           OTLP_ENDPOINT: ${{ needs.launch-project.outputs.ingest_url }}:443
+          MONITORING_OTLP_ENDPOINT: ${{ secrets.global_monitoring_otlp_url }}
+          MONITORING_API_KEY: ${{ secrets.global_monitoring_api_key }}
         run: |
           ./confgen/generate-collector-config.sh > config.yaml
           echo ${{ secrets.ENCRYPTION_KEY }} | gpg --pinentry-mode loopback --passphrase-fd 0 -c -o config.yaml.gpg config.yaml

@@ -86,6 +86,23 @@ service:
   telemetry:
     logs:
       level: warn
+EOF
+
+if [ -z "${MONITORING_OTLP_ENDPOINT}" ] || [ -z "${MONITORING_API_KEY}" ]; then
+  cat << EOF
     metrics:
       level: none
 EOF
+else
+  cat << EOF
+    metrics:
+      readers:
+        - periodic:
+            exporter:
+              otlp:
+                protocol: http/protobuf
+              endpoint: ${MONITORING_OTLP_ENDPOINT}
+              headers:
+                authorization: ApiKey ${MONITORING_API_KEY}
+EOF
+fi
