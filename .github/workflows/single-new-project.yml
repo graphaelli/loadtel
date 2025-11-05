@@ -112,7 +112,6 @@ jobs:
     name: Configure Collector
     runs-on: ubuntu-latest
     outputs:
-      collector_config: ${{ steps.generate-config.outputs.collector_config }}
       matrix: ${{ needs.determine-parallelism.outputs.matrix }}
     needs:
       - launch-project
@@ -144,9 +143,14 @@ jobs:
           API_KEY: ${{ steps.load-api-key.outputs.api_key }}
           OTLP_ENDPOINT: ${{ needs.launch-project.outputs.ingest_url }}:443
         run: |
-          ./single-new-project/generate-collector-config.sh > config.txt
-          config_encrypted=$(echo ${{ secrets.ENCRYPTION_KEY }} | gpg --pinentry-mode loopback --passphrase-fd 0 -c -o - config.txt | base64 -w 0)
-          echo "collector_configuration=$config_encrypted" >> $GITHUB_OUTPUT
+          ./single-new-project/generate-collector-config.sh > config.yaml
+          echo ${{ secrets.ENCRYPTION_KEY }} | gpg --pinentry-mode loopback --passphrase-fd 0 -c -o config.yaml.gpg config.yaml
+
+      - name: Upload Collector Config
+        uses: actions/upload-artifact@v4
+        with:
+          name: collector-config
+          path: config.yaml.gpg
 
   load-project:
     name: Run Collectors
@@ -155,7 +159,7 @@ jobs:
       - determine-parallelism
     uses: graphaelli/improved-computing-machine/.github/workflows/load.yml@main
     with:
-      collector_configuration: ${{ needs.configure-collector.outputs.collector_config }}
+      collector_config_artifact: collector-config
       collector_version: ${{ inputs.collector_version }}
       delay_start: ${{ inputs.delay_start }}
       duration: ${{ inputs.duration }}
