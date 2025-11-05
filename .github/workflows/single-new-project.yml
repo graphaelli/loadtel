@@ -170,6 +170,8 @@ jobs:
       duration: ${{ inputs.duration }}
       matrix: ${{ needs.determine-parallelism.outputs.matrix }}
       numprocs: ${{ inputs.numprocs }}
+    secrets:
+      ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
 
   cleanup-project:
     name: Cleanup Project

@@ -31,6 +31,10 @@ on:
           required: true
           description: 'Name of the artifact containing the collector configuration'
           type: string
+    secrets:
+        ENCRYPTION_KEY:
+          required: true
+          description: 'Encryption key for GPG decryption'
 
 jobs:
   load:
