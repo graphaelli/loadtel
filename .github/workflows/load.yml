@@ -72,9 +72,10 @@ jobs:
 
       - name: Configure OpenTelemetry Collectors
         run: |
-          cat > config.yaml <<EOF
-          ${inputs.collector_configuration}
+          cat | base64 -d > config.gpg << EOF
+          ${{ inputs.collector_configuration }}
           EOF
+          echo ${{ secrets.ENCRYPTION_KEY }} | gpg --pinentry-mode loopback --passphrase-fd 0 --decrypt -o - config.gpg > config.yaml
 
       - name: Start OpenTelemetry Collectors
         env:

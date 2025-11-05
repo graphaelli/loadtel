@@ -33,7 +33,7 @@ jobs:
     name: Launch Project
     runs-on: ubuntu-latest
     outputs:
-      es_api_key: ${{ steps.save-project-information.outputs.es_api_key }}
+      encrypted_api_key: ${{ steps.save-project-information.outputs.encrypted_api_key }}
       ingest_url: ${{ steps.save-project-information.outputs.ingest_url }}
       kibana_url: ${{ steps.save-project-information.outputs.kibana_url }}
       project_id: ${{ steps.save-project-information.outputs.project_id }}
@@ -63,13 +63,18 @@ jobs:
         env:
           EC_API_KEY: ${{ secrets.EC_API_KEY }}
 
+      - name: Install GPG
+        run: |
+          sudo apt update
+          sudo apt install -y gpg
+
       - name: Save Project Information
         id: save-project-information
         working-directory: single-new-project
         run: |
-          apikey=$(terraform output --json api_key | jq -r .encoded)
-          echo "::add-mask::$apikey"
-          echo "es_api_key=$apikey" >> $GITHUB_OUTPUT
+          terraform output --json api_key | jq -r .encoded >> apikey.txt
+          encrypted_api_key=$(echo ${{ secrets.ENCRYPTION_KEY }} | gpg --pinentry-mode loopback --passphrase-fd 0 -c -o - apikey.txt | base64 -w 0)
+          echo "encrypted_api_key=$encrypted_api_key" >> $GITHUB_OUTPUT
           echo "ingest_url=$(terraform output -raw apm_url | sed 's/.apm./.ingest./')" >> $GITHUB_OUTPUT
           echo "kibana_url=$(terraform output -raw kibana_url)" >> $GITHUB_OUTPUT
           echo "project_id=$(terraform output -raw project_id)" >> $GITHUB_OUTPUT
@@ -114,15 +119,30 @@ jobs:
         with:
           fetch-depth: 1
 
+      - name: Install GPG
+        run: |
+            sudo apt update
+            sudo apt install -y gpg
+
+      - name: Load API Key
+        id: load-api-key
+        run: |
+          cat | base64 -d > apikey.gpg << EOF
+          ${{ needs.launch-project.outputs.encrypted_api_key }}
+          EOF
+          api_key=$(echo ${{ secrets.ENCRYPTION_KEY }} | gpg --pinentry-mode loopback --passphrase-fd 0 --decrypt -o - apikey.gpg)
+          echo "::add-mask::$api_key"
+          echo "api_key=$api_key" >> $GITHUB_OUTPUT
+
       - name: Generate Config
         id: generate-config
         env:
-          API_KEY: ${{ needs.launch-project.outputs.es_api_key }}
+          API_KEY: ${{ steps.load-api-key.outputs.api_key }}
           OTLP_ENDPOINT: ${{ needs.launch-project.outputs.ingest_url }}:443
         run: |
-          ./single-new-project/generate-collector-config.sh > config
-          echo "::add-mask::$(cat config)"
-          echo "collector_config=$(cat config)" >> $GITHUB_OUTPUT
+          ./single-new-project/generate-collector-config.sh > config.txt
+          config_encrypted=$(echo ${{ secrets.ENCRYPTION_KEY }} | gpg --pinentry-mode loopback --passphrase-fd 0 -c -o - config.txt | base64 -w 0)
+          echo "collector_configuration=$config_encrypted" >> $GITHUB_OUTPUT
 
   load-project:
     name: Run Collectors
