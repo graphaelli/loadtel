@@ -1,0 +1,106 @@
+name: Load Single Existing Project
+on:
+  workflow_dispatch:
+    inputs:
+        duration:
+          description: 'Duration for each collector instance to run'
+          required: false
+          default: '1m'
+          type: string
+        delay_start:
+          description: 'Maximum delay in seconds before starting each collector'
+          required: false
+          default: 10
+          type: number
+        numprocs:
+          description: 'Number of collector instances to run'
+          required: false
+          default: 5
+          type: number
+        parallelism:
+          description: 'Number of parallel jobs to run'
+          required: false
+          default: 3
+          type: number
+        ingest_url:
+          description: 'Ingest URL for the existing observability project'
+          required: true
+          type: string
+        api_key:
+          description: 'API key for the existing observability project'
+          required: true
+          type: string
+        collector_version:
+          description: 'Version of the collector to use'
+          required: false
+          default: '0.135.0'
+          type: string
+
+jobs:
+  determine-parallelism:
+    name: Determine Parallelism
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.determine-parallelism.outputs.matrix }}
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: 3.12
+      - name: Define matrix
+        id: determine-parallelism
+        run: |
+          echo "matrix=$(python -c 'import json; print(json.dumps(list(range(${{ inputs.parallelism }}))))')" >> $GITHUB_OUTPUT
+
+  configure-collector:
+    name: Configure Collector
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ needs.determine-parallelism.outputs.matrix }}
+    needs:
+      - determine-parallelism
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+
+      - name: Install GPG
+        run: |
+            sudo apt update
+            sudo apt install -y gpg
+
+      - name: Mask API Key
+        id: mask-api-key
+        run: |
+          echo "::add-mask::${{ inputs.api_key }}"
+          echo "api_key=${{ inputs.api_key }}" >> $GITHUB_OUTPUT
+
+      - name: Generate Config
+        id: generate-config
+        env:
+          API_KEY: ${{ steps.mask-api-key.outputs.api_key }}
+          OTLP_ENDPOINT: ${{ inputs.ingest_url }}:443
+        run: |
+          ./single-new-project/generate-collector-config.sh > config.yaml
+          echo ${{ secrets.ENCRYPTION_KEY }} | gpg --pinentry-mode loopback --passphrase-fd 0 -c -o config.yaml.gpg config.yaml
+
+      - name: Upload Collector Config
+        uses: actions/upload-artifact@v4
+        with:
+          name: collector-config
+          path: config.yaml.gpg
+
+  load-project:
+    name: Run Collectors
+    needs:
+      - configure-collector
+      - determine-parallelism
+    uses: graphaelli/improved-computing-machine/.github/workflows/load.yml@main
+    with:
+      collector_config_artifact: collector-config
+      collector_version: ${{ inputs.collector_version }}
+      delay_start: ${{ inputs.delay_start }}
+      duration: ${{ inputs.duration }}
+      matrix: ${{ needs.determine-parallelism.outputs.matrix }}
+      numprocs: ${{ inputs.numprocs }}
+
