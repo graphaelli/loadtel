@@ -27,6 +27,11 @@ on:
           required: false
           default: "aws-us-east-1"
           type: string
+        collector_version:
+          description: 'Version of the collector to use'
+          required: false
+          default: '0.135.0'
+          type: string
 
 jobs:
   launch-project:
