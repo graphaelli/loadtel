@@ -22,14 +22,6 @@ on:
           required: false
           default: 3
           type: number
-        ingest_url:
-          description: 'Ingest URL for the existing observability project'
-          required: true
-          type: string
-        api_key:
-          description: 'API key for the existing observability project'
-          required: true
-          type: string
         collector_version:
           description: 'Version of the collector to use'
           required: false
@@ -69,17 +61,11 @@ jobs:
             sudo apt update
             sudo apt install -y gpg
 
-      - name: Mask API Key
-        id: mask-api-key
-        run: |
-          echo "::add-mask::${{ inputs.api_key }}"
-          echo "api_key=${{ inputs.api_key }}" >> $GITHUB_OUTPUT
-
       - name: Generate Config
         id: generate-config
         env:
-          API_KEY: ${{ steps.mask-api-key.outputs.api_key }}
-          OTLP_ENDPOINT: ${{ inputs.ingest_url }}:443
+          API_KEY: ${{ secrets.single_existing_project_api_key }}
+          OTLP_ENDPOINT: ${{ secrets.single_existing_project_ingest_url }}
         run: |
           ./single-new-project/generate-collector-config.sh > config.yaml
           echo ${{ secrets.ENCRYPTION_KEY }} | gpg --pinentry-mode loopback --passphrase-fd 0 -c -o config.yaml.gpg config.yaml
