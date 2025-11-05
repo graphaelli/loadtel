@@ -79,16 +79,20 @@ jobs:
           echo "kibana_url=$(terraform output -raw kibana_url)" >> $GITHUB_OUTPUT
           echo "project_id=$(terraform output -raw project_id)" >> $GITHUB_OUTPUT
 
+
+      - name: Encrypt Terraform State
+        id: encrypt-terraform-state
+        working-directory: single-new-project
+        run: |
+          tar -czf terraform-state.tar.gz .terraform terraform.tfstate
+          echo ${{ secrets.ENCRYPTION_KEY }} | gpg --pinentry-mode loopback --passphrase-fd 0 -c -o terraform-state.tar.gz.gpg terraform-state.tar.gz
+
       - name: Save Terraform State
         id: save-terraform-state
         uses: actions/upload-artifact@v4
         with:
           name: terraform-state
-          path: |
-            single-new-project/.terraform
-            single-new-project/terraform.tfstate
-            single-new-project/terraform.tfstate.backup
-          include-hidden-files: true
+          path: single-new-project/terraform-state.tar.gz.gpg
 
   determine-parallelism:
     name: Determine Parallelism
@@ -180,6 +184,13 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: terraform-state
+          path: single-new-project/terraform-state.tar.gz.gpg
+
+      - name: Decrypt Terraform State
+        working-directory: single-new-project
+        run: |
+          echo ${{ secrets.ENCRYPTION_KEY }} | gpg --pinentry-mode loopback --passphrase-fd 0 --decrypt -o terraform-state.tar.gz terraform-state.tar.gz.gpg
+          tar -xzf terraform-state.tar.gz
 
       - name: Destroy Terraform
         if: always()
