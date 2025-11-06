@@ -20,8 +20,8 @@ on:
       parallelism:
         description: 'Number of parallel jobs to run'
         required: false
-        default: 3
-        type: number
+        default: '3'
+        type: string
       collector_version:
         description: 'Version of the collector to use'
         required: false
@@ -53,8 +53,8 @@ on:
       parallelism:
         description: 'Number of parallel jobs to run'
         required: false
-        default: 3
-        type: number
+        default: '3'
+        type: string
       collector_version:
         description: 'Version of the collector to use'
         required: false
@@ -95,7 +95,7 @@ jobs:
       - name: Define matrix
         id: determine-parallelism
         run: |
-          echo "matrix=$(python -c 'import json; print(json.dumps(list(range(${{ inputs.parallelism }}))))')" >> $GITHUB_OUTPUT
+          echo "matrix=$(python -c 'import json; print(json.dumps(list(range(int(${{ inputs.parallelism }})))))')" >> $GITHUB_OUTPUT
 
   configure-collector:
     name: Configure Collector
