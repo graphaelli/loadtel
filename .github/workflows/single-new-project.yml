@@ -22,6 +22,11 @@ on:
         required: false
         default: 3
         type: number
+      num_instances:
+        description: 'Number of collector instances per configuration (otlp/1, otlp/2, etc.)'
+        required: false
+        default: '3'
+        type: string
       region_id:
         description: 'Region ID for the observability project'
         required: false
@@ -53,8 +58,10 @@ jobs:
           echo "Delay Start: ${{ inputs.delay_start }}"
           echo "Number of Procs: ${{ inputs.numprocs }}"
           echo "Parallelism: ${{ inputs.parallelism }}"
+          echo "Number of Instances: ${{ inputs.num_instances }}"
           echo "Collector Version: ${{ inputs.collector_version }}"
           echo "Region ID: ${{ inputs.region_id }}"
+          echo "Total Collector Count: $(( ${{ inputs.num_instances }} * ${{ inputs.numprocs }} * ${{ inputs.parallelism }} ))"
 
   launch-project:
     name: Launch Project
@@ -165,6 +172,17 @@ jobs:
           echo "::add-mask::$api_key"
           echo "api_key=$api_key" >> $GITHUB_OUTPUT
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: 3.12
+          cache: 'pip'
+
+      - name: Install Supervisor
+        run: |
+          python -m venv .venv
+          source .venv/bin/activate
+          pip install -r confgen/requirements.txt
+
       - name: Generate Config
         id: generate-config
         env:
@@ -174,8 +192,10 @@ jobs:
           ELASTICSEARCH_ENDPOINT: ${{ inputs.output_type == 'elasticsearch' && needs.launch-project.outputs.es_url || '' }}
           MONITORING_OTLP_ENDPOINT: ${{ secrets.global_monitoring_otlp_endpoint }}
           MONITORING_API_KEY: ${{ secrets.global_monitoring_api_key }}
+          NUM_INSTANCES: ${{ inputs.num_instances }}
         run: |
-          ./confgen/generate-collector-config.sh > config.yaml
+          source .venv/bin/activate
+          ./confgen/generate-collector-config.py > config.yaml
           echo ${{ secrets.ENCRYPTION_KEY }} | gpg --pinentry-mode loopback --passphrase-fd 0 -c -o config.yaml.gpg config.yaml
 
       - name: Upload Collector Config

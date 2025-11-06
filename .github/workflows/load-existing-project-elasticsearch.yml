@@ -22,6 +22,11 @@ on:
         required: false
         default: '20'
         type: string
+      num_instances:
+        description: 'Number of collector instances per configuration (elasticsearch/1, elasticsearch/2, etc.)'
+        required: false
+        default: '3'
+        type: string
       collector_version:
         description: 'Version of the collector to use'
         required: false

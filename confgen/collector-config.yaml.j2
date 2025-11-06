@@ -1,0 +1,147 @@
+receivers:
+  hostmetrics/selfmon:
+    collection_interval: 60s
+    scrapers:
+      cpu:
+        metrics:
+          system.cpu.utilization:
+            enabled: true
+          system.cpu.logical.count:
+            enabled: true
+      memory:
+        metrics:
+          system.memory.utilization:
+            enabled: true
+      network:
+      processes:
+{% for i in range(1, num_instances + 1) %}
+  hostmetrics/{{ i }}:
+    collection_interval: 30s
+    scrapers:
+      cpu:
+        metrics:
+          system.cpu.utilization:
+            enabled: true
+          system.cpu.logical.count:
+            enabled: true
+      disk:
+      filesystem:
+      load:
+      memory:
+        metrics:
+          system.memory.utilization:
+            enabled: true
+      network:
+      processes:
+{% endfor %}
+
+processors:
+  transform/selfmon:
+    metric_statements:
+      - set(resource.attributes["host.name"], "loadcol-${env:ITERATION}-${env:INSTANCE}")
+{% for i in range(1, num_instances + 1) %}
+  attributes/{{ i }}:
+    actions:
+      - key: instance
+        value: ${env:ITERATION}-${env:INSTANCE}-{{ i }}
+        action: insert
+{% endfor %}
+
+  batch:
+  resourcedetection:
+    detectors: ["system"]
+    system:
+      hostname_sources: ["os"]
+      resource_attributes:
+        host.name:
+          enabled: true
+        host.id:
+          enabled: false
+        host.arch:
+          enabled: true
+        host.ip:
+          enabled: true
+        host.mac:
+          enabled: true
+        host.cpu.vendor.id:
+          enabled: true
+        host.cpu.family:
+          enabled: true
+        host.cpu.model.id:
+          enabled: true
+        host.cpu.model.name:
+          enabled: true
+        host.cpu.stepping:
+          enabled: true
+        host.cpu.cache.l2.size:
+          enabled: true
+        os.description:
+          enabled: true
+        os.type:
+          enabled: true
+
+exporters:
+  otlp/selfmon:
+    endpoint: {{ monitoring_otlp_endpoint }}
+    headers:
+      authorization: ApiKey {{ monitoring_api_key }}
+{% if otlp_endpoint %}
+{% for i in range(1, num_instances + 1) %}
+  otlp/{{ i }}:
+    endpoint: {{ otlp_endpoint }}
+    headers:
+      authorization: ApiKey {{ otlp_api_key }}
+{% endfor %}
+{% endif %}
+{% if elasticsearch_endpoint %}
+{% for i in range(1, num_instances + 1) %}
+  elasticsearch/{{ i }}:
+    endpoint: {{ elasticsearch_endpoint }}
+    api_key: {{ elasticsearch_api_key }}
+{% endfor %}
+{% endif %}
+
+service:
+  pipelines:
+    metrics/selfmon:
+      receivers: [hostmetrics/selfmon]
+      processors: [resourcedetection,transform/selfmon,batch]
+      exporters: [otlp/selfmon]
+{% if otlp_endpoint %}
+{% for i in range(1, num_instances + 1) %}
+    metrics/otlp/{{ i }}:
+      receivers: [hostmetrics/{{ i }}]
+      processors: [attributes/{{ i }},resourcedetection,batch]
+      exporters: [otlp/{{ i }}]
+{% endfor %}
+{% endif %}
+{% if elasticsearch_endpoint %}
+{% for i in range(1, num_instances + 1) %}
+    metrics/elasticsearch/{{ i }}:
+      receivers: [hostmetrics/{{ i }}]
+      processors: [attributes/{{ i }},resourcedetection]
+      exporters: [elasticsearch/{{ i }}]
+{% endfor %}
+{% endif %}
+{% if not monitoring_otlp_endpoint or not monitoring_api_key %}
+  telemetry:
+    logs:
+      level: warn
+    metrics:
+      level: none
+{% else %}
+  telemetry:
+    logs:
+      level: warn
+    metrics:
+      readers:
+        - periodic:
+            interval: 60000
+            exporter:
+              otlp:
+                protocol: http/protobuf
+                endpoint: {{ monitoring_otlp_endpoint }}
+                headers:
+                  authorization: ApiKey {{ monitoring_api_key }}
+{% endif %}
+

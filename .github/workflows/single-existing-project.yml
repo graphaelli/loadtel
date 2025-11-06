@@ -22,6 +22,11 @@ on:
         required: false
         default: '3'
         type: string
+      num_instances:
+        description: 'Number of collector instances per configuration (otlp/1, otlp/2, etc.)'
+        required: false
+        default: '3'
+        type: string
       collector_version:
         description: 'Version of the collector to use'
         required: false
@@ -84,6 +89,11 @@ on:
         options:
           - otlp
           - elasticsearch
+      num_instances:
+        description: 'Number of collector instances per configuration (hostmetrics/1, hostmetrics/2, etc.)'
+        required: false
+        default: '3'
+        type: string
 
 jobs:
   plan:
@@ -97,8 +107,9 @@ jobs:
           echo "Delay Start: ${{ inputs.delay_start }}"
           echo "Number of Procs: ${{ inputs.numprocs }}"
           echo "Parallelism: ${{ inputs.parallelism }}"
+          echo "Number of Instances: ${{ inputs.num_instances }}"
           echo "Collector Version: ${{ inputs.collector_version }}"
-          echo "Total Collector Count: $(( 3 * ${{ inputs.numprocs }} * ${{ inputs.parallelism }} ))"
+          echo "Total Collector Count: $(( ${{ inputs.num_instances }} * ${{ inputs.numprocs }} * ${{ inputs.parallelism }} ))"
 
   determine-parallelism:
     name: Determine Parallelism
@@ -132,6 +143,17 @@ jobs:
             sudo apt update
             sudo apt install -y gpg
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: 3.12
+          cache: 'pip'
+
+      - name: Install Supervisor
+        run: |
+          python -m venv .venv
+          source .venv/bin/activate
+          pip install -r confgen/requirements.txt
+
       - name: Generate Config
         id: generate-config
         env:
@@ -141,8 +163,10 @@ jobs:
           ELASTICSEARCH_ENDPOINT: ${{ inputs.output_type == 'elasticsearch' && secrets.single_existing_project_es_endpoint || '' }}
           MONITORING_OTLP_ENDPOINT: ${{ secrets.global_monitoring_otlp_endpoint }}
           MONITORING_API_KEY: ${{ secrets.global_monitoring_api_key }}
+          NUM_INSTANCES: ${{ inputs.num_instances }}
         run: |
-          ./confgen/generate-collector-config.sh > config.yaml
+          source .venv/bin/activate
+          ./confgen/generate-collector-config.py > config.yaml
           echo ${{ secrets.ENCRYPTION_KEY }} | gpg --pinentry-mode loopback --passphrase-fd 0 -c -o config.yaml.gpg config.yaml
 
       - name: Upload Collector Config
