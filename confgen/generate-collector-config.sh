@@ -76,7 +76,15 @@ EOF
 
 if [ -n "${OTLP_ENDPOINT}" ]; then
 cat << EOF
-  otlp:
+  otlp/first:
+    endpoint: ${OTLP_ENDPOINT}
+    headers:
+      authorization: ApiKey ${OTLP_API_KEY}
+  otlp/second:
+    endpoint: ${OTLP_ENDPOINT}
+    headers:
+      authorization: ApiKey ${OTLP_API_KEY}
+  otlp/third:
     endpoint: ${OTLP_ENDPOINT}
     headers:
       authorization: ApiKey ${OTLP_API_KEY}
@@ -85,7 +93,13 @@ fi
 
 if [ -n "${ELASTICSEARCH_ENDPOINT}" ]; then
 cat << EOF
-  elasticsearch:
+  elasticsearch/first:
+    endpoint: ${ELASTICSEARCH_ENDPOINT}
+    api_key: ${ELASTICSEARCH_API_KEY}
+  elasticsearch/second:
+    endpoint: ${ELASTICSEARCH_ENDPOINT}
+    api_key: ${ELASTICSEARCH_API_KEY}
+  elasticsearch/third:
     endpoint: ${ELASTICSEARCH_ENDPOINT}
     api_key: ${ELASTICSEARCH_API_KEY}
 EOF
@@ -99,19 +113,35 @@ EOF
 
 if [ -n "${OTLP_ENDPOINT}" ]; then
 cat << EOF
-    metrics/otlp:
+    metrics/otlp/first:
       receivers: [hostmetrics]
       processors: [attributes,resourcedetection,batch]
-      exporters: [otlp]
+      exporters: [otlp/first]
+    metrics/otlp/second:
+      receivers: [hostmetrics]
+      processors: [attributes,resourcedetection,batch]
+      exporters: [otlp/second]
+    metrics/otlp/third:
+      receivers: [hostmetrics]
+      processors: [attributes,resourcedetection,batch]
+      exporters: [otlp/third]
 EOF
 fi
 
 if [ -n "${ELASTICSEARCH_ENDPOINT}" ]; then
 cat << EOF
-    metrics/elasticsearch:
+    metrics/elasticsearch/first:
       receivers: [hostmetrics]
       processors: [attributes,resourcedetection]
-      exporters: [elasticsearch]
+      exporters: [elasticsearch/first]
+    metrics/elasticsearch/second:
+      receivers: [hostmetrics]
+      processors: [attributes,resourcedetection]
+      exporters: [elasticsearch/second]
+    metrics/elasticsearch/third:
+      receivers: [hostmetrics]
+      processors: [attributes,resourcedetection]
+      exporters: [elasticsearch/third]
 EOF
 fi
 
