@@ -12,7 +12,43 @@ fi
 
 cat << EOF
 receivers:
-  hostmetrics:
+  hostmetrics/first:
+    collection_interval: 30s
+    scrapers:
+      cpu:
+        metrics:
+          system.cpu.utilization:
+            enabled: true
+          system.cpu.logical.count:
+            enabled: true
+      disk:
+      filesystem:
+      load:
+      memory:
+        metrics:
+          system.memory.utilization:
+            enabled: true
+      network:
+      processes:
+  hostmetrics/second:
+    collection_interval: 30s
+    scrapers:
+      cpu:
+        metrics:
+          system.cpu.utilization:
+            enabled: true
+          system.cpu.logical.count:
+            enabled: true
+      disk:
+      filesystem:
+      load:
+      memory:
+        metrics:
+          system.memory.utilization:
+            enabled: true
+      network:
+      processes:
+  hostmetrics/third:
     collection_interval: 30s
     scrapers:
       cpu:
@@ -114,15 +150,15 @@ EOF
 if [ -n "${OTLP_ENDPOINT}" ]; then
 cat << EOF
     metrics/otlp/first:
-      receivers: [hostmetrics]
+      receivers: [hostmetrics/first]
       processors: [attributes,resourcedetection,batch]
       exporters: [otlp/first]
     metrics/otlp/second:
-      receivers: [hostmetrics]
+      receivers: [hostmetrics/second]
       processors: [attributes,resourcedetection,batch]
       exporters: [otlp/second]
     metrics/otlp/third:
-      receivers: [hostmetrics]
+      receivers: [hostmetrics/third]
       processors: [attributes,resourcedetection,batch]
       exporters: [otlp/third]
 EOF
@@ -131,15 +167,15 @@ fi
 if [ -n "${ELASTICSEARCH_ENDPOINT}" ]; then
 cat << EOF
     metrics/elasticsearch/first:
-      receivers: [hostmetrics]
+      receivers: [hostmetrics/first]
       processors: [attributes,resourcedetection]
       exporters: [elasticsearch/first]
     metrics/elasticsearch/second:
-      receivers: [hostmetrics]
+      receivers: [hostmetrics/second]
       processors: [attributes,resourcedetection]
       exporters: [elasticsearch/second]
     metrics/elasticsearch/third:
-      receivers: [hostmetrics]
+      receivers: [hostmetrics/third]
       processors: [attributes,resourcedetection]
       exporters: [elasticsearch/third]
 EOF
