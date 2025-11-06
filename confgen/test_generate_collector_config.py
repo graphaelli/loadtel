@@ -243,7 +243,6 @@ class TestGenerateConfig:
             clear=True,
         ):
             config = generate_config(template_dir=template_dir)
-            assert "hostmetrics/selfmon:" in config
             assert "hostmetrics/1:" in config
             assert "hostmetrics/2:" in config
             assert "hostmetrics/3:" in config
@@ -260,28 +259,11 @@ class TestGenerateConfig:
             clear=True,
         ):
             config = generate_config(template_dir=template_dir)
-            assert "transform/selfmon:" in config
             assert "attributes/1:" in config
             assert "attributes/2:" in config
             assert "attributes/3:" in config
             assert "batch:" in config
             assert "resourcedetection:" in config
-
-    def test_generate_includes_selfmon_pipeline(self):
-        """Test that the selfmon pipeline is always included."""
-        template_dir = Path(__file__).parent
-        with patch.dict(
-            os.environ,
-            {
-                "OTLP_ENDPOINT": "https://otlp.example.com",
-                "OTLP_API_KEY": "test-key",
-            },
-            clear=True,
-        ):
-            config = generate_config(template_dir=template_dir)
-            assert "metrics/selfmon:" in config
-            assert "receivers: [hostmetrics/selfmon]" in config
-            assert "exporters: [otlp/selfmon]" in config
 
     def test_generate_template_not_found(self, capsys):
         """Test error handling when template is not found."""

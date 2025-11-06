@@ -46,7 +46,7 @@ jobs:
       collector_version: ${{ inputs.collector_version }}
     secrets:
       ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
-      single_existing_project_es_api_key: ${{ secrets.single_existing_project_es_api_key }}
-      single_existing_project_es_endpoint: ${{ secrets.single_existing_project_es_endpoint }}
       global_monitoring_otlp_endpoint: ${{ secrets.global_monitoring_otlp_endpoint }}
       global_monitoring_api_key: ${{ secrets.global_monitoring_api_key }}
+      single_existing_project_es_api_key: ${{ secrets.single_existing_project_es_api_key }}
+      single_existing_project_es_endpoint: ${{ secrets.single_existing_project_es_endpoint }}

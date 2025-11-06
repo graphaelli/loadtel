@@ -35,6 +35,12 @@ on:
         ENCRYPTION_KEY:
           required: true
           description: 'Encryption key for GPG decryption'
+        global_monitoring_otlp_endpoint:
+          required: false
+          description: 'OTLP endpoint URL for monitoring telemetry from the OpenTelemetry collectors'
+        global_monitoring_api_key:
+          required: false
+          description: 'API key for the monitoring OTLP endpoint'
 
 jobs:
   load:
@@ -55,6 +61,104 @@ jobs:
           curl -sL -o otelcol-contrib.deb https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/v${{ inputs.collector_version }}/otelcol-contrib_${{ inputs.collector_version }}_linux_amd64.deb
           sudo dpkg -i otelcol-contrib.deb
           rm otelcol-contrib.deb
+
+      - name: Configure Monitoring of the Runner
+        env:
+          MONITORING_OTLP_ENDPOINT: ${{ secrets.global_monitoring_otlp_endpoint }}
+          MONITORING_API_KEY: ${{ secrets.global_monitoring_api_key }}
+          ITERATION: ${{ matrix.parallel }}
+        run: |
+          if [ -z "${MONITORING_OTLP_ENDPOINT}" ]; then
+            echo "MONITORING_OTLP_ENDPOINT is not set, skipping monitoring"
+            exit 0
+          fi
+          cat > loadmon.yaml << EOF
+          receivers:
+            hostmetrics:
+              collection_interval: 30s
+              scrapers:
+                cpu:
+                  metrics:
+                    system.cpu.utilization:
+                      enabled: true
+                    system.cpu.logical.count:
+                      enabled: true
+                disk:
+                filesystem:
+                load:
+                memory:
+                  metrics:
+                    system.memory.utilization:
+                      enabled: true
+                network:
+                processes:
+          processors:
+            transform:
+              metric_statements:
+                - set(resource.attributes["iteration"], "${ITERATION}")
+            resourcedetection:
+              detectors: ["system"]
+              system:
+                hostname_sources: ["os"]
+                resource_attributes:
+                  host.name:
+                    enabled: true
+                  host.id:
+                    enabled: false
+                  host.arch:
+                    enabled: true
+                  host.ip:
+                    enabled: true
+                  host.mac:
+                    enabled: true
+                  host.cpu.vendor.id:
+                    enabled: true
+                  host.cpu.family:
+                    enabled: true
+                  host.cpu.model.id:
+                    enabled: true
+                  host.cpu.model.name:
+                    enabled: true
+                  host.cpu.stepping:
+                    enabled: true
+                  host.cpu.cache.l2.size:
+                    enabled: true
+                  os.description:
+                    enabled: true
+                  os.type:
+                    enabled: true
+          exporters:
+            otlp:
+              endpoint: ${MONITORING_OTLP_ENDPOINT}
+              headers:
+                authorization: ApiKey ${MONITORING_API_KEY}
+          service:
+            pipelines:
+              metrics:
+                receivers: [hostmetrics]
+                processors: [resourcedetection,transform]
+                exporters: [otlp]
+            telemetry:
+              logs:
+                level: warn
+              metrics:
+                level: none
+          EOF
+
+      - name: Validate Monitoring Config
+        run: |
+          if [ ! -s loadmon.yaml ]; then
+            exit 0
+          fi
+
+          /usr/bin/otelcol-contrib --config loadmon.yaml validate
+
+      - name: Start Monitoring the Runner
+        run: |
+          if [ ! -s loadmon.yaml ]; then
+            exit 0
+          fi
+          nohup /usr/bin/otelcol-contrib --config loadmon.yaml > /dev/null 2>&1 &
 
       - name: Setup Python
         uses: actions/setup-python@v5

@@ -219,6 +219,8 @@ jobs:
       numprocs: ${{ inputs.numprocs }}
     secrets:
       ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
+      MONITORING_OTLP_ENDPOINT: ${{ secrets.global_monitoring_otlp_endpoint }}
+      MONITORING_API_KEY: ${{ secrets.global_monitoring_api_key }}
 
   cleanup-project:
     name: Cleanup Project
