@@ -68,10 +68,20 @@ receivers:
       processes:
 
 processors:
-  attributes:
+  attributes/first:
     actions:
       - key: instance
-        value: \${env:ITERATION}-\${env:INSTANCE}
+        value: \${env:ITERATION}-\${env:INSTANCE}-1
+        action: insert
+  attributes/second:
+    actions:
+      - key: instance
+        value: \${env:ITERATION}-\${env:INSTANCE}-2
+        action: insert
+  attributes/third:
+    actions:
+      - key: instance
+        value: \${env:ITERATION}-\${env:INSTANCE}-3
         action: insert
 
   batch:
@@ -151,15 +161,15 @@ if [ -n "${OTLP_ENDPOINT}" ]; then
 cat << EOF
     metrics/otlp/first:
       receivers: [hostmetrics/first]
-      processors: [attributes,resourcedetection,batch]
+      processors: [attributes/first,resourcedetection,batch]
       exporters: [otlp/first]
     metrics/otlp/second:
       receivers: [hostmetrics/second]
-      processors: [attributes,resourcedetection,batch]
+      processors: [attributes/second,resourcedetection,batch]
       exporters: [otlp/second]
     metrics/otlp/third:
       receivers: [hostmetrics/third]
-      processors: [attributes,resourcedetection,batch]
+      processors: [attributes/third,resourcedetection,batch]
       exporters: [otlp/third]
 EOF
 fi
@@ -168,15 +178,15 @@ if [ -n "${ELASTICSEARCH_ENDPOINT}" ]; then
 cat << EOF
     metrics/elasticsearch/first:
       receivers: [hostmetrics/first]
-      processors: [attributes,resourcedetection]
+      processors: [attributes/first,resourcedetection]
       exporters: [elasticsearch/first]
     metrics/elasticsearch/second:
       receivers: [hostmetrics/second]
-      processors: [attributes,resourcedetection]
+      processors: [attributes/second,resourcedetection]
       exporters: [elasticsearch/second]
     metrics/elasticsearch/third:
       receivers: [hostmetrics/third]
-      processors: [attributes,resourcedetection]
+      processors: [attributes/third,resourcedetection]
       exporters: [elasticsearch/third]
 EOF
 fi
