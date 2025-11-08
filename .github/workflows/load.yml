@@ -2,35 +2,35 @@ name: Load
 on:
   workflow_call:
     inputs:
-        numprocs:
-          default: '5'
-          description: 'Number of collector instances to run'
-          required: false
-          type: string
-        duration:
-          default: '1m'
-          description: 'Duration for each collector instance to run'
-          required: false
-          type: string
-        delay_start:
-          default: '10'
-          description: 'Maximum delay in seconds before starting each collector'
-          required: false
-          type: string
-        matrix:
-          default: '[0,1,2]'
-          description: 'Matrix of parallel jobs to run'
-          required: false
-          type: string
-        collector_version:
-          default: '0.138.0'
-          description: 'Version of the collector to use'
-          required: false
-          type: string
-        collector_config_artifact:
-          required: true
-          description: 'Name of the artifact containing the collector configuration'
-          type: string
+      duration:
+        description: 'Duration ("s" for seconds (the default), "m" for minutes, "h" for hours) for each collector process to run'
+        required: false
+        default: '1h'
+        type: string
+      delay_start:
+        description: 'Maximum delay in seconds before starting each collector'
+        required: false
+        default: '10'
+        type: string
+      numprocs:
+        description: 'Number of collector processes to run'
+        required: false
+        default: '5'
+        type: string
+      collector_version:
+        description: 'Version of the collector to use'
+        required: false
+        default: '0.138.0'
+        type: string
+      collector_config_artifact:
+        description: 'Name of the artifact containing the collector configuration'
+        required: true
+        type: string
+      matrix:
+        description: 'Matrix of parallel jobs to run'
+        required: false
+        default: '[0,1,2,3,4,5,6,7,8,9]'
+        type: string
     secrets:
         ENCRYPTION_KEY:
           required: true

@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
     inputs:
       duration:
-        description: 'Duration for each collector instance to run'
+        description: 'Duration ("s" for seconds (the default), "m" for minutes, "h" for hours) for each collector process to run'
         required: false
         default: '2h'
         type: string
@@ -13,24 +13,19 @@ on:
         default: '300'
         type: string
       numprocs:
-        description: 'Number of collector instances to run'
+        description: 'Number of collector processes to run'
         required: false
         default: '5'
         type: string
-      parallelism:
-        description: 'Number of parallel jobs to run'
+      numparallel:
+        description: 'Number of parallel github actions jobs to run'
         required: false
-        default: 20
-        type: number
-      num_instances:
-        description: 'Number of collector instances per configuration (otlp/1, otlp/2, etc.)'
+        default: '20'
+        type: string
+      numpipelines:
+        description: 'Number of collector pipelines per configuration (otlp/1, otlp/2, etc.)'
         required: false
         default: '10'
-        type: string
-      region_id:
-        description: 'Region ID for the observability project'
-        required: false
-        default: "aws-us-east-1"
         type: string
       collector_version:
         description: 'Version of the collector to use'
@@ -45,6 +40,11 @@ on:
         options:
           - otlp
           - elasticsearch
+      region_id:
+        description: 'Region ID for the observability project'
+        required: false
+        default: "aws-us-east-1"
+        type: string
 
 jobs:
   plan:
@@ -57,11 +57,11 @@ jobs:
           echo "Duration: ${{ inputs.duration }}"
           echo "Delay Start: ${{ inputs.delay_start }}"
           echo "Number of Procs: ${{ inputs.numprocs }}"
-          echo "Parallelism: ${{ inputs.parallelism }}"
-          echo "Number of Instances: ${{ inputs.num_instances }}"
+          echo "numparallel: ${{ inputs.numparallel }}"
+          echo "Number of Instances: ${{ inputs.numpipelines }}"
           echo "Collector Version: ${{ inputs.collector_version }}"
           echo "Region ID: ${{ inputs.region_id }}"
-          echo "Total Collector Count: $(( ${{ inputs.num_instances }} * ${{ inputs.numprocs }} * ${{ inputs.parallelism }} ))"
+          echo "Total Collector Count: $(( ${{ inputs.numpipelines }} * ${{ inputs.numprocs }} * ${{ inputs.numparallel }} ))"
 
   launch-project:
     name: Launch Project
@@ -129,28 +129,28 @@ jobs:
           name: terraform-state
           path: single-new-project/terraform-state.tar.gz.gpg
 
-  determine-parallelism:
-    name: Determine Parallelism
+  determine-numparallel:
+    name: Determine numparallel
     runs-on: ubuntu-latest
     outputs:
-      matrix: ${{ steps.determine-parallelism.outputs.matrix }}
+      matrix: ${{ steps.determine-numparallel.outputs.matrix }}
     steps:
       - uses: actions/setup-python@v5
         with:
           python-version: 3.12
       - name: Define matrix
-        id: determine-parallelism
+        id: determine-numparallel
         run: |
-          echo "matrix=$(python -c 'import json; print(json.dumps(list(range(${{ inputs.parallelism }}))))')" >> $GITHUB_OUTPUT
+          echo "matrix=$(python -c 'import json; print(json.dumps(list(range(int(${{ inputs.numparallel }})))))')" >> $GITHUB_OUTPUT
 
   configure-collector:
     name: Configure Collector
     runs-on: ubuntu-latest
     outputs:
-      matrix: ${{ needs.determine-parallelism.outputs.matrix }}
+      matrix: ${{ needs.determine-numparallel.outputs.matrix }}
     needs:
       - launch-project
-      - determine-parallelism
+      - determine-numparallel
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
@@ -192,7 +192,7 @@ jobs:
           ELASTICSEARCH_ENDPOINT: ${{ inputs.output_type == 'elasticsearch' && needs.launch-project.outputs.es_url || '' }}
           MONITORING_OTLP_ENDPOINT: ${{ secrets.global_monitoring_otlp_endpoint }}
           MONITORING_API_KEY: ${{ secrets.global_monitoring_api_key }}
-          NUM_INSTANCES: ${{ inputs.num_instances }}
+          numpipelines: ${{ inputs.numpipelines }}
         run: |
           source .venv/bin/activate
           ./confgen/generate-collector-config.py > config.yaml
@@ -208,14 +208,14 @@ jobs:
     name: Run Collectors
     needs:
       - configure-collector
-      - determine-parallelism
+      - determine-numparallel
     uses: graphaelli/loadtel/.github/workflows/load.yml@main
     with:
       collector_config_artifact: collector-config
       collector_version: ${{ inputs.collector_version }}
       delay_start: ${{ inputs.delay_start }}
       duration: ${{ inputs.duration }}
-      matrix: ${{ needs.determine-parallelism.outputs.matrix }}
+      matrix: ${{ needs.determine-numparallel.outputs.matrix }}
       numprocs: ${{ inputs.numprocs }}
     secrets:
       ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}

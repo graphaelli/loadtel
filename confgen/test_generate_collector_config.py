@@ -120,13 +120,13 @@ class TestGetTemplateContext:
             assert context["elasticsearch_api_key"] == ""
             assert context["monitoring_otlp_endpoint"] == ""
             assert context["monitoring_api_key"] == ""
-            assert context["num_instances"] == 3  # Default value
+            assert context["numpipelines"] == 3  # Default value
 
-    def test_num_instances_from_env(self):
-        """Test that NUM_INSTANCES is read from environment variable."""
-        with patch.dict(os.environ, {"NUM_INSTANCES": "7"}, clear=True):
+    def test_numpipelines_from_env(self):
+        """Test that numpipelines is read from environment variable."""
+        with patch.dict(os.environ, {"numpipelines": "7"}, clear=True):
             context = get_template_context()
-            assert context["num_instances"] == 7
+            assert context["numpipelines"] == 7
 
 
 class TestGenerateConfig:
@@ -295,15 +295,15 @@ class TestGenerateConfig:
             assert "${env:ITERATION}" in config
             assert "${env:INSTANCE}" in config
 
-    def test_generate_with_custom_num_instances(self):
-        """Test config generation with custom NUM_INSTANCES."""
+    def test_generate_with_custom_numpipelines(self):
+        """Test config generation with custom numpipelines."""
         template_dir = Path(__file__).parent
         with patch.dict(
             os.environ,
             {
                 "OTLP_ENDPOINT": "https://otlp.example.com",
                 "OTLP_API_KEY": "test-key",
-                "NUM_INSTANCES": "5",
+                "numpipelines": "5",
             },
             clear=True,
         ):
@@ -320,7 +320,7 @@ class TestGenerateConfig:
             assert "metrics/otlp/5:" in config
 
     def test_generate_defaults_to_3_instances(self):
-        """Test that default is 3 instances when NUM_INSTANCES is not set."""
+        """Test that default is 3 instances when numpipelines is not set."""
         template_dir = Path(__file__).parent
         with patch.dict(
             os.environ,

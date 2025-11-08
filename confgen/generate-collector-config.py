@@ -69,7 +69,7 @@ def generate_config(template_dir=None):
 def get_template_context():
     """Build the template context from environment variables."""
     # Get number of instances, defaulting to 3 for backward compatibility
-    num_instances = int(os.getenv("NUM_INSTANCES", "3"))
+    numpipelines = int(os.getenv("numpipelines", "3"))
     return {
         "otlp_endpoint": os.getenv("OTLP_ENDPOINT", ""),
         "otlp_api_key": os.getenv("OTLP_API_KEY", ""),
@@ -77,7 +77,7 @@ def get_template_context():
         "elasticsearch_api_key": os.getenv("ELASTICSEARCH_API_KEY", ""),
         "monitoring_otlp_endpoint": os.getenv("MONITORING_OTLP_ENDPOINT", ""),
         "monitoring_api_key": os.getenv("MONITORING_API_KEY", ""),
-        "num_instances": num_instances,
+        "numpipelines": numpipelines,
     }
 
 

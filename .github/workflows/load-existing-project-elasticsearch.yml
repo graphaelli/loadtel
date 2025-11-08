@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
     inputs:
       duration:
-        description: 'Duration for each collector instance to run'
+        description: 'Duration ("s" for seconds (the default), "m" for minutes, "h" for hours) for each collector process to run'
         required: false
         default: '2h'
         type: string
@@ -13,19 +13,19 @@ on:
         default: '300'
         type: string
       numprocs:
-        description: 'Number of collector instances to run'
+        description: 'Number of collector processes to run'
         required: false
-        default: '300'
+        default: '5'
         type: string
-      parallelism:
-        description: 'Number of parallel jobs to run'
+      numparallel:
+        description: 'Number of parallel github actions jobs to run'
         required: false
         default: '20'
         type: string
-      num_instances:
-        description: 'Number of collector instances per configuration (elasticsearch/1, elasticsearch/2, etc.)'
+      numpipelines:
+        description: 'Number of collector pipelines per configuration (elasticsearch/1, elasticsearch/2, etc.)'
         required: false
-        default: '3'
+        default: '10'
         type: string
       collector_version:
         description: 'Version of the collector to use'
@@ -42,8 +42,8 @@ jobs:
       duration: ${{ inputs.duration }}
       delay_start: ${{ inputs.delay_start }}
       numprocs: ${{ inputs.numprocs }}
-      parallelism: ${{ inputs.parallelism }}
-      num_instances: ${{ inputs.num_instances }}
+      numparallel: ${{ inputs.numparallel }}
+      numpipelines: ${{ inputs.numpipelines }}
       collector_version: ${{ inputs.collector_version }}
     secrets:
       ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}

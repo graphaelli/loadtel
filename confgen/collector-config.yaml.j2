@@ -19,7 +19,7 @@ receivers:
       processes:
 
 processors:
-{% for i in range(1, num_instances + 1) %}
+{% for i in range(1, numpipelines + 1) %}
   transform/{{ i }}:
     metric_statements:
       - set(resource.attributes["instance"], "${env:ITERATION}-${env:INSTANCE}-{{ i }}")
@@ -60,7 +60,7 @@ processors:
 
 exporters:
 {% if otlp_endpoint %}
-{% for i in range(1, num_instances + 1) %}
+{% for i in range(1, numpipelines + 1) %}
   otlp/{{ i }}:
     endpoint: {{ otlp_endpoint }}
     headers:
@@ -68,7 +68,7 @@ exporters:
 {% endfor %}
 {% endif %}
 {% if elasticsearch_endpoint %}
-{% for i in range(1, num_instances + 1) %}
+{% for i in range(1, numpipelines + 1) %}
   elasticsearch/{{ i }}:
     endpoint: {{ elasticsearch_endpoint }}
     api_key: {{ elasticsearch_api_key }}
@@ -78,7 +78,7 @@ exporters:
 service:
   pipelines:
 {% if otlp_endpoint %}
-{% for i in range(1, num_instances + 1) %}
+{% for i in range(1, numpipelines + 1) %}
     metrics/otlp/{{ i }}:
       receivers: [hostmetrics]
       processors: [transform/{{ i }},resourcedetection,batch]
@@ -86,7 +86,7 @@ service:
 {% endfor %}
 {% endif %}
 {% if elasticsearch_endpoint %}
-{% for i in range(1, num_instances + 1) %}
+{% for i in range(1, numpipelines + 1) %}
     metrics/elasticsearch/{{ i }}:
       receivers: [hostmetrics]
       processors: [transform/{{ i }},resourcedetection]
