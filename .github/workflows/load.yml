@@ -4,22 +4,22 @@ on:
     inputs:
       duration:
         description: 'Duration ("s" for seconds (the default), "m" for minutes, "h" for hours) for each collector process to run'
-        required: false
+        required: true
         default: '1h'
         type: string
       delay_start:
         description: 'Maximum delay in seconds before starting each collector'
-        required: false
+        required: true
         default: '10'
         type: string
       numprocs:
         description: 'Number of collector processes to run'
-        required: false
+        required: true
         default: '5'
         type: string
       collector_version:
         description: 'Version of the collector to use'
-        required: false
+        required: true
         default: '0.138.0'
         type: string
       collector_config_artifact:
@@ -28,7 +28,7 @@ on:
         type: string
       matrix:
         description: 'Matrix of parallel jobs to run'
-        required: false
+        required: true
         default: '[0,1,2,3,4,5,6,7,8,9]'
         type: string
     secrets:
@@ -36,10 +36,10 @@ on:
           required: true
           description: 'Encryption key for GPG decryption'
         global_monitoring_otlp_endpoint:
-          required: false
+          required: true
           description: 'OTLP endpoint URL for monitoring telemetry from the OpenTelemetry collectors'
         global_monitoring_api_key:
-          required: false
+          required: true
           description: 'API key for the monitoring OTLP endpoint'
 
 jobs:

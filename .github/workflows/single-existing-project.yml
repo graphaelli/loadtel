@@ -4,37 +4,37 @@ on:
     inputs:
       duration:
         description: 'Duration ("s" for seconds (the default), "m" for minutes, "h" for hours) for each collector process to run'
-        required: false
+        required: true
         default: '1h'
         type: string
       delay_start:
         description: 'Maximum delay in seconds before starting each collector'
-        required: false
+        required: true
         default: '10'
         type: string
       numprocs:
         description: 'Number of collector processes to run'
-        required: false
+        required: true
         default: '5'
         type: string
       numparallel:
         description: 'Number of parallel github actions jobs to run'
-        required: false
+        required: true
         default: '20'
         type: string
       numpipelines:
         description: 'Number of collector pipelines per configuration (otlp/1, otlp/2, etc.)'
-        required: false
+        required: true
         default: '10'
         type: string
       collector_version:
         description: 'Version of the collector to use'
-        required: false
+        required: true
         default: '0.138.0'
         type: string
       output_type:
         description: 'Output type for the collector (otlp or elasticsearch)'
-        required: false
+        required: true
         default: 'otlp'
         type: string
     secrets:
@@ -48,47 +48,47 @@ on:
         required: true
         description: 'Elasticsearch endpoint URL for the existing project'
       global_monitoring_otlp_endpoint:
-        required: false
+        required: true
         description: 'OTLP endpoint URL for monitoring telemetry from the OpenTelemetry collectors'
       global_monitoring_api_key:
-        required: false
+        required: true
         description: 'API key for the monitoring OTLP endpoint'
 
   workflow_dispatch:
     inputs:
       duration:
         description: 'Duration ("s" for seconds (the default), "m" for minutes, "h" for hours) for each collector process to run'
-        required: false
+        required: true
         default: '1h'
         type: string
       delay_start:
         description: 'Maximum delay in seconds before starting each collector'
-        required: false
+        required: true
         default: '10'
         type: string
       numprocs:
         description: 'Number of collector processes to run'
-        required: false
+        required: true
         default: '5'
         type: string
       numparallel:
         description: 'Number of parallel github actions jobs to run'
-        required: false
+        required: true
         default: '20'
         type: string
       numpipelines:
         description: 'Number of collector pipelines per configuration (otlp/1, otlp/2, etc.)'
-        required: false
+        required: true
         default: '10'
         type: string
       collector_version:
         description: 'Version of the collector to use'
-        required: false
+        required: true
         default: '0.138.0'
         type: string
       output_type:
         description: 'Output type for the collector (otlp or elasticsearch)'
-        required: false
+        required: true
         default: 'otlp'
         type: choice
         options:
