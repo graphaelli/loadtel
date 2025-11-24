@@ -1,0 +1,251 @@
+name: ES vs OTLP
+on:
+  workflow_dispatch:
+    inputs:
+      duration:
+        description: 'Duration ("s" for seconds (the default), "m" for minutes, "h" for hours) for each collector process to run'
+        required: true
+        default: '2h'
+        type: string
+      delay_start:
+        description: 'Maximum delay in seconds before starting each collector'
+        required: true
+        default: '300'
+        type: string
+      numprocs:
+        description: 'Number of collector processes to run'
+        required: true
+        default: '5'
+        type: string
+      numparallel:
+        description: 'Number of parallel github actions jobs to run'
+        required: true
+        default: '20'
+        type: string
+      numpipelines:
+        description: 'Number of collector pipelines per configuration (creates both otlp/* and elasticsearch/* pipelines)'
+        required: true
+        default: '10'
+        type: string
+      collector_version:
+        description: 'Version of the collector to use'
+        required: true
+        default: '0.139.0'
+        type: string
+      region_id:
+        description: 'Region ID for the new project'
+        required: true
+        default: "aws-us-east-1"
+        type: string
+
+jobs:
+  plan:
+    name: Summarize Plan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Summarize Plan
+        run: |
+          echo "Region ID: ${{ inputs.region_id }}"
+          echo "Collector Version: ${{ inputs.collector_version }}"
+          echo "Duration: ${{ inputs.duration }}"
+          echo "Delay Start: ${{ inputs.delay_start }}"
+          echo "Collector Procs: ${{ inputs.numprocs }}"
+          echo "Pipelines per Collector: ${{ inputs.numpipelines }}"
+          echo "Parallel Jobs: ${{ inputs.numparallel }}"
+          echo "Total Collector Count: $(( ${{ inputs.numpipelines }} * ${{ inputs.numprocs }} * ${{ inputs.numparallel }} ))"
+
+  launch-project:
+    name: Launch New Project
+    runs-on: ubuntu-latest
+    outputs:
+      encrypted_api_key: ${{ steps.save-project-information.outputs.encrypted_api_key }}
+      es_url: ${{ steps.save-project-information.outputs.es_url }}
+      ingest_url: ${{ steps.save-project-information.outputs.ingest_url }}
+      kibana_url: ${{ steps.save-project-information.outputs.kibana_url }}
+      project_id: ${{ steps.save-project-information.outputs.project_id }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Initialize Terraform
+        working-directory: single-new-project
+        run: terraform init
+
+      - name: Set Terraform Input
+        working-directory: single-new-project
+        run: |
+          cat > terraform.tfvars << EOF
+          region_id = "${{ inputs.region_id }}"
+          EOF
+
+      - name: Apply Terraform
+        working-directory: single-new-project
+        run: terraform apply -auto-approve
+        env:
+          EC_API_KEY: ${{ secrets.EC_API_KEY }}
+
+      - name: Install GPG
+        run: |
+          sudo apt update
+          sudo apt install -y gpg
+
+      - name: Save Project Information
+        id: save-project-information
+        working-directory: single-new-project
+        run: |
+          terraform output --json api_key | jq -r .encoded >> apikey.txt
+          encrypted_api_key=$(echo ${{ secrets.ENCRYPTION_KEY }} | gpg --pinentry-mode loopback --passphrase-fd 0 -c -o - apikey.txt | base64 -w 0)
+          echo "encrypted_api_key=$encrypted_api_key" >> $GITHUB_OUTPUT
+          echo "es_url=$(terraform output -raw es_url)" >> $GITHUB_OUTPUT
+          echo "ingest_url=$(terraform output -raw apm_url | sed 's/.apm./.ingest./')" >> $GITHUB_OUTPUT
+          echo "kibana_url=$(terraform output -raw kibana_url)" >> $GITHUB_OUTPUT
+          echo "project_id=$(terraform output -raw project_id)" >> $GITHUB_OUTPUT
+
+      - name: Encrypt Terraform State
+        id: encrypt-terraform-state
+        working-directory: single-new-project
+        run: |
+          tar -czvf terraform-state.tar.gz .terraform terraform.tfstate
+          echo ${{ secrets.ENCRYPTION_KEY }} | gpg --pinentry-mode loopback --passphrase-fd 0 -c -o terraform-state.tar.gz.gpg terraform-state.tar.gz
+
+      - name: Save Terraform State
+        id: save-terraform-state
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-state
+          path: single-new-project/terraform-state.tar.gz.gpg
+
+  determine-numparallel:
+    name: Determine numparallel
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.determine-numparallel.outputs.matrix }}
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: 3.12
+      - name: Define matrix
+        id: determine-numparallel
+        run: |
+          echo "matrix=$(python -c 'import json; print(json.dumps(list(range(int(${{ inputs.numparallel }})))))')" >> $GITHUB_OUTPUT
+
+  configure-collector:
+    name: Configure Collector
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ needs.determine-numparallel.outputs.matrix }}
+    needs:
+      - launch-project
+      - determine-numparallel
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+
+      - name: Install GPG
+        run: |
+            sudo apt update
+            sudo apt install -y gpg
+
+      - name: Load API Key for New Project
+        id: load-api-key
+        run: |
+          cat | base64 -d > apikey.gpg << EOF
+          ${{ needs.launch-project.outputs.encrypted_api_key }}
+          EOF
+          api_key=$(echo ${{ secrets.ENCRYPTION_KEY }} | gpg --pinentry-mode loopback --passphrase-fd 0 --decrypt -o - apikey.gpg)
+          echo "::add-mask::$api_key"
+          echo "api_key=$api_key" >> $GITHUB_OUTPUT
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: 3.12
+          cache: 'pip'
+
+      - name: Install Dependencies
+        run: |
+          python -m venv .venv
+          source .venv/bin/activate
+          pip install -r confgen/requirements.txt
+
+      - name: Generate Config
+        id: generate-config
+        env:
+          OTLP_API_KEY: ${{ steps.load-api-key.outputs.api_key }}
+          OTLP_ENDPOINT: ${{ format('{0}:443', needs.launch-project.outputs.ingest_url) }}
+          ELASTICSEARCH_API_KEY: ${{ secrets.single_existing_project_es_api_key }}
+          ELASTICSEARCH_ENDPOINT: ${{ secrets.single_existing_project_es_endpoint }}
+          MONITORING_OTLP_ENDPOINT: ${{ secrets.global_monitoring_otlp_endpoint }}
+          MONITORING_API_KEY: ${{ secrets.global_monitoring_api_key }}
+          numpipelines: ${{ inputs.numpipelines }}
+        run: |
+          source .venv/bin/activate
+          ./confgen/generate-collector-config.py > config.yaml
+          echo ${{ secrets.ENCRYPTION_KEY }} | gpg --pinentry-mode loopback --passphrase-fd 0 -c -o config.yaml.gpg config.yaml
+
+      - name: Upload Collector Config
+        uses: actions/upload-artifact@v4
+        with:
+          name: collector-config
+          path: config.yaml.gpg
+
+  load-project:
+    name: Run Collectors
+    needs:
+      - configure-collector
+      - determine-numparallel
+    uses: graphaelli/loadtel/.github/workflows/load.yml@main
+    with:
+      collector_config_artifact: collector-config
+      collector_version: ${{ inputs.collector_version }}
+      delay_start: ${{ inputs.delay_start }}
+      duration: ${{ inputs.duration }}
+      matrix: ${{ needs.determine-numparallel.outputs.matrix }}
+      numprocs: ${{ inputs.numprocs }}
+    secrets:
+      ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
+      global_monitoring_otlp_endpoint: ${{ secrets.global_monitoring_otlp_endpoint }}
+      global_monitoring_api_key: ${{ secrets.global_monitoring_api_key }}
+
+  cleanup-project:
+    name: Cleanup New Project
+    runs-on: ubuntu-latest
+    if: always()
+    needs:
+      - launch-project
+      - load-project
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Initialize Terraform
+        working-directory: single-new-project
+        run: terraform init
+
+      - name: Download Terraform State
+        uses: actions/download-artifact@v4
+        with:
+          name: terraform-state
+          path: single-new-project/
+
+      - name: Decrypt Terraform State
+        working-directory: single-new-project
+        run: |
+          echo ${{ secrets.ENCRYPTION_KEY }} | gpg --pinentry-mode loopback --passphrase-fd 0 --decrypt -o - terraform-state.tar.gz.gpg | tar -xzvf -
+
+      - name: Destroy Terraform
+        working-directory: single-new-project
+        run: terraform destroy -auto-approve
+        env:
+          EC_API_KEY: ${{ secrets.EC_API_KEY }}
