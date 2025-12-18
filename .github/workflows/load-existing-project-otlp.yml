@@ -1,0 +1,67 @@
+name: Load Existing Project via OTLP
+on:
+  workflow_dispatch:
+    inputs:
+      duration:
+        description: 'Duration ("s" for seconds (the default), "m" for minutes, "h" for hours) for each collector process to run'
+        required: true
+        default: '2h'
+        type: string
+      delay_start:
+        description: 'Maximum delay in seconds before starting each collector'
+        required: true
+        default: '300'
+        type: string
+      numprocs:
+        description: 'Number of collector processes to run'
+        required: true
+        default: '5'
+        type: string
+      numparallel:
+        description: 'Number of parallel github actions jobs to run'
+        required: true
+        default: '20'
+        type: string
+      numpipelines:
+        description: 'Number of collector pipelines per configuration (elasticsearch/1, elasticsearch/2, etc.)'
+        required: true
+        default: '10'
+        type: string
+      collector_version:
+        description: 'Version of the collector to use'
+        required: false
+        type: string
+
+jobs:
+  determine-collector-version:
+    name: Determine Collector Version
+    runs-on: ubuntu-latest
+    outputs:
+      collector_version: ${{ steps.determine-collector-version.outputs.collector_version }}
+    steps:
+      - name: Determine Collector Version
+        id: determine-collector-version
+        run: |
+          COLLECTOR_VERSION="${{ inputs.collector_version || vars.DEFAULT_COLLECTOR_VERSION }}"
+          echo "collector_version=$COLLECTOR_VERSION" >> $GITHUB_OUTPUT
+          echo "Determined collector version: $COLLECTOR_VERSION"
+
+  load-existing-project-elasticsearch:
+    name: Load
+    needs:
+      - determine-collector-version
+    uses: graphaelli/loadtel/.github/workflows/single-existing-project.yml@main
+    with:
+      output_type: otlp
+      duration: ${{ inputs.duration }}
+      delay_start: ${{ inputs.delay_start }}
+      numprocs: ${{ inputs.numprocs }}
+      numparallel: ${{ inputs.numparallel }}
+      numpipelines: ${{ inputs.numpipelines }}
+      collector_version: ${{ needs.determine-collector-version.outputs.collector_version }}
+    secrets:
+      ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
+      global_monitoring_otlp_endpoint: ${{ secrets.global_monitoring_otlp_endpoint }}
+      global_monitoring_api_key: ${{ secrets.global_monitoring_api_key }}
+      single_existing_project_es_api_key: ${{ secrets.single_existing_project_otlp_api_key }}
+      single_existing_project_es_endpoint: ${{ secrets.single_existing_project_ingest_endpoint }}
