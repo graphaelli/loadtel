@@ -101,6 +101,7 @@ jobs:
           processors:
             transform:
               metric_statements:
+                - set(resource.attributes["host.name"], "loadtelcol-${ITERATION}")
                 - set(resource.attributes["instance"], "${ITERATION}")
             resourcedetection:
               detectors: ["system"]
