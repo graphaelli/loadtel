@@ -116,7 +116,7 @@ jobs:
           encrypted_api_key=$(echo ${{ secrets.ENCRYPTION_KEY }} | gpg --pinentry-mode loopback --passphrase-fd 0 -c -o - apikey.txt | base64 -w 0)
           echo "encrypted_api_key=$encrypted_api_key" >> $GITHUB_OUTPUT
           echo "es_url=$(terraform output -raw es_url)" >> $GITHUB_OUTPUT
-          echo "ingest_url=$(terraform output -raw apm_url | sed 's/.apm./.ingest./')" >> $GITHUB_OUTPUT
+          echo "ingest_url=$(terraform output -raw ingest_url)" >> $GITHUB_OUTPUT
           echo "kibana_url=$(terraform output -raw kibana_url)" >> $GITHUB_OUTPUT
           echo "project_id=$(terraform output -raw project_id)" >> $GITHUB_OUTPUT
 

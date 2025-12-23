@@ -14,8 +14,8 @@ output "kibana_url" {
   value = ec_observability_project.loadsingle.endpoints.kibana
 }
 
-output "apm_url" {
-  value = ec_observability_project.loadsingle.endpoints.apm
+output "ingest_url" {
+  value = ec_observability_project.loadsingle.endpoints.ingest
 }
     
 output "cloud_id" {
