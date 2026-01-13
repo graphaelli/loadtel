@@ -72,6 +72,13 @@ exporters:
   elasticsearch/{{ i }}:
     endpoint: {{ elasticsearch_endpoint }}
     api_key: {{ elasticsearch_api_key }}
+    retry:
+      enabled: true
+      initial_interval: 5s
+      max_interval: 30s
+      max_retries: 12
+      retry_on_status:
+        - 429
 {% endfor %}
 {% endif %}
 
